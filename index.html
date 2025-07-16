@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App with Dynamic Clouds</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4); /* Default */
+            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+            transition: background 1s ease;
+        }
+
+        /* Weather-based backgrounds */
+        body.sunny {
+            background: linear-gradient(45deg, #f7e018, #f5a623);
+        }
+
+        body.cloudy {
+            background: linear-gradient(45deg, #b0bec5, #78909c);
+        }
+
+        body.rainy {
+            background: linear-gradient(45deg, #2c3e50, #34495e);
+        }
+
+        body.snowy {
+            background: linear-gradient(45deg, #dfe6e9, #b2bec3);
+        }
+
+        /* Cloud Animation */
+        .cloud-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            animation: drift linear infinite;
+        }
+
+        @keyframes drift {
+            0% { transform: translateX(-20vw); }
+            100% { transform: translateX(120vw); }
+        }
+
+        /* Rain Animation */
+        .rain-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            display: none;
+        }
+
+        .raindrop {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.7);
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            0% { transform: translateY(-100vh); }
+            100% { transform: translateY(100vh); }
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            position: relative;
+            z-index: 1;
+            animation: fadeIn 1s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .weather-card {
+            text-align: center;
+            background: linear-gradient(135deg, #fff, #f0f4f8);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .weather-card h1 {
+            font-size: 2.8em;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .weather-icon {
+            font-size: 5em;
+            margin: 20px 0;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .temperature {
+            font-size: 2.5em;
+            color: #e74c3c;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .description {
+            font-size: 1.3em;
+            color: #34495e;
+            text-transform: capitalize;
+            margin-bottom: 25px;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .detail-item {
+            background: #3498db;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            transition: transform 0.3s ease;
+        }
+
+        .detail-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .error {
+            color: #e74c3c;
+            font-size: 1.3em;
+            display: none;
+            background: rgba(231, 76, 60, 0.1);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            font-size: 1.3em;
+            color: #2c3e50;
+            display: none;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0.5; }
+        }
+
+        /* Chat Button Styles */
+        .chat-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 70px;
+            height: 70px;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .chat-button:hover {
+            transform: rotate(360deg);
+            background: #c0392b;
+        }
+
+        /* Chatbot Styles */
+        .chatbot-container {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 100%;
+            max-width: 450px;
+            height: 100%;
+            background: linear-gradient(to bottom, #fff, #ecf0f1);
+            box-shadow: -5px 0 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            transition: right 0.4s ease;
+            z-index: 1000;
+        }
+
+        .chatbot-container.open {
+            right: 0;
+        }
+
+        .chatbot-header {
+            background: linear-gradient(90deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e74c3c;
+        }
+
+        .chatbot-header h2 {
+            font-size: 1.8em;
+            font-weight: 600;
+        }
+
+        .close-chat {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.8em;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .close-chat:hover {
+            transform: scale(1.2);
+        }
+
+        .chatbot-messages {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            background: #f5f6fa;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            padding: 12px 18px;
+            border-radius: 15px;
+            max-width: 80%;
+            word-wrap: break-word;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .user-message {
+            background: #3498db;
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 3px;
+        }
+
+        .ai-message {
+            background: #fff;
+            color: #2c3e50;
+            margin-right: auto;
+            border-bottom-left-radius: 3px;
+        }
+
+        .typing-indicator {
+            display: none;
+            margin-bottom: 20px;
+            padding: 12px 18px;
+            max-width: 80%;
+            margin-right: auto;
+        }
+
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #2c3e50;
+            border-radius: 50%;
+            margin-right: 5px;
+            animation: bounce 0.6s infinite alternate;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes bounce {
+            to { transform: translateY(-5px); }
+        }
+
+        .chatbot-input {
+            display: flex;
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #dfe6e9;
+        }
+
+        .chatbot-input input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #3498db;
+            border-radius: 25px;
+            outline: none;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .chatbot-input input:focus {
+            border-color: #e74c3c;
+        }
+
+        .chatbot-input button {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 25px;
+            margin-left: 15px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s ease;
+        }
+
+        .chatbot-input button:hover {
+            background: #c0392b;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            .weather-card h1 {
+                font-size: 2.2em;
+            }
+
+            .weather-icon {
+                font-size: 3.5em;
+            }
+
+            .temperature {
+                font-size: 1.8em;
+            }
+
+            .details {
+                grid-template-columns: 1fr;
+            }
+
+            .chatbot-container {
+                max-width: 100%;
+            }
+
+            .chat-button {
+                width: 60px;
+                height: 60px;
+                font-size: 24px;
+                bottom: 20px;
+                right: 20px;
+            }
+
+            .chatbot-header h2 {
+                font-size: 1.5em;
+            }
+
+            .chatbot-messages {
+                padding: 15px;
+            }
+
+            .chatbot-input {
+                padding: 15px;
+            }
+
+            .raindrop {
+                height: 15px;
+            }
+
+            .cloud {
+                transform: scale(0.7);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="cloud-container" id="cloudContainer"></div>
+    <div class="rain-container" id="rainContainer"></div>
+    <div class="container">
+        <div class="weather-card">
+            <div class="loading">Loading...</div>
+            <div class="error"></div>
+            <h1 id="city">Getting location...</h1>
+            <div class="weather-icon" id="weather-icon"></div>
+            <div class="temperature" id="temperature"></div>
+            <div class="description" id="description"></div>
+            <div class="details">
+                <div class="detail-item" id="humidity">Humidity: --</div>
+                <div class="detail-item" id="wind">Wind Speed: --</div>
+                <div class="detail-item" id="pressure">Pressure: --</div>
+            </div>
+        </div>
+    </div>
+
+    <button class="chat-button" onclick="toggleChatbot()">💬</button>
+
+    <div class="chatbot-container" id="chatbot">
+        <div class="chatbot-header">
+            <h2>Weather Assistant</h2>
+            <button class="close-chat" onclick="toggleChatbot()">✕</button>
+        </div>
+        <div class="chatbot-messages" id="chatMessages">
+            <div class="ai-message">Hello! I'm your weather assistant. Ask me anything! 😊</div>
+        </div>
+        <div class="chatbot-input">
+            <input type="text" id="chatInput" placeholder="Type your message...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const apiKey = '8535f19ef9a597fbde5ac7ebbddc4f30'; // Replace with your OpenWeatherMap API key
+        const geminiApiKey = 'AIzaSyDeduzNc50e-FcPKJ6E73mb2ZlZ-16AzYA'; // Replace with your Gemini API key
+        const weatherIcon = document.getElementById('weather-icon');
+        const temperature = document.getElementById('temperature');
+        const description = document.getElementById('description');
+        const city = document.getElementById('city');
+        const humidity = document.getElementById('humidity');
+        const wind = document.getElementById('wind');
+        const pressure = document.getElementById('pressure');
+        const error = document.querySelector('.error');
+        const loading = document.querySelector('.loading');
+        const chatbot = document.getElementById('chatbot');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const cloudContainer = document.getElementById('cloudContainer');
+        const rainContainer = document.getElementById('rainContainer');
+
+        // Weather emoji mapping
+        const weatherEmojis = {
+            'Clear': '☀️',
+            'Clouds': '☁️',
+            'Rain': '🌧️',
+            'Drizzle': '🌦️',
+            'Thunderstorm': '⛈️',
+            'Snow': '❄️',
+            'Mist': '🌫️',
+            'Fog': '🌫️',
+            'Haze': '🌫️'
+        };
+
+        let currentTemperature = 'Unknown';
+
+        // Function to create clouds
+        function createClouds(numClouds) {
+            cloudContainer.innerHTML = ''; // Clear existing clouds
+            for (let i = 0; i < numClouds; i++) {
+                const cloud = document.createElement('div');
+                cloud.className = 'cloud';
+                const size = Math.random() * 60 + 40; // Random size between 40-100px
+                cloud.style.width = `${size}px`;
+                cloud.style.height = `${size / 2}px`;
+                cloud.style.top = `${Math.random() * 60}%`; // Random vertical position
+                cloud.style.left = `${Math.random() * -20}%`; // Start off-screen
+                cloud.style.opacity = `${Math.random() * 0.4 + 0.4}`; // Random opacity
+                cloud.style.animationDuration = `${Math.random() * 20 + 20}s`; // Random speed
+                cloud.style.animationDelay = `${Math.random() * 10}s`; // Random delay
+                cloudContainer.appendChild(cloud);
+            }
+        }
+
+        // Function to create raindrops
+        function createRaindrops() {
+            rainContainer.innerHTML = ''; // Clear existing raindrops
+            const numDrops = window.innerWidth < 600 ? 50 : 100; // Fewer drops on mobile
+            for (let i = 0; i < numDrops; i++) {
+                const raindrop = document.createElement('div');
+                raindrop.className = 'raindrop';
+                raindrop.style.left = `${Math.random() * 100}%`;
+                raindrop.style.animationDuration = `${Math.random() * 0.5 + 0.5}s`;
+                raindrop.style.animationDelay = `${Math.random() * 2}s`;
+                rainContainer.appendChild(raindrop);
+            }
+        }
+
+        function updateBackground(weatherCondition) {
+            document.body.className = ''; // Reset classes
+            rainContainer.style.display = 'none'; // Hide rain by default
+
+            // Adjust number of clouds based on weather
+            let numClouds = window.innerWidth < 600 ? 5 : 10; // Default for mobile/laptop
+            if (weatherCondition === 'Clouds') {
+                numClouds = window.innerWidth < 600 ? 10 : 20; // More clouds for cloudy weather
+            } else if (weatherCondition === 'Clear') {
+                numClouds = window.innerWidth < 600 ? 2 : 5; // Fewer clouds for sunny
+            } else if (['Rain', 'Drizzle', 'Thunderstorm'].includes(weatherCondition)) {
+                numClouds = window.innerWidth < 600 ? 8 : 15; // Moderate clouds for rainy
+            } else if (weatherCondition === 'Snow') {
+                numClouds = window.innerWidth < 600 ? 5 : 10;
+            }
+
+            createClouds(numClouds);
+
+            if (['Rain', 'Drizzle', 'Thunderstorm'].includes(weatherCondition)) {
+                document.body.classList.add('rainy');
+                rainContainer.style.display = 'block';
+                createRaindrops();
+            } else if (weatherCondition === 'Clear') {
+                document.body.classList.add('sunny');
+            } else if (weatherCondition === 'Clouds') {
+                document.body.classList.add('cloudy');
+            } else if (weatherCondition === 'Snow') {
+                document.body.classList.add('snowy');
+            } else {
+                document.body.classList.add('default');
+            }
+        }
+
+        function showError(message) {
+            error.style.display = 'block';
+            error.textContent = message;
+            loading.style.display = 'none';
+        }
+
+        function showWeather(data) {
+            loading.style.display = 'none';
+            error.style.display = 'none';
+
+            const weatherCondition = data.weather[0].main;
+            const emoji = weatherEmojis[weatherCondition] || '🌤️';
+            currentTemperature = `${Math.round(data.main.temp)}°C`;
+
+            updateBackground(weatherCondition);
+            
+            city.textContent = `${data.name}, ${data.sys.country}`;
+            weatherIcon.textContent = emoji;
+            temperature.textContent = currentTemperature;
+            description.textContent = data.weather[0].description;
+            humidity.textContent = `Humidity: ${data.main.humidity}%`;
+            wind.textContent = `Wind Speed: ${data.wind.speed} m/s`;
+            pressure.textContent = `Pressure: ${data.main.pressure} hPa`;
+        }
+
+        function getWeatherByLocation(lat, lon) {
+            loading.style.display = 'block';
+            fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Unable to fetch weather data. Please check your API key or internet connection.');
+                    }
+                    return response.json();
+                })
+                .then(data => showWeather(data))
+                .catch(err => showError(err.message));
+        }
+
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        const { latitude, longitude } = position.coords;
+                        getWeatherByLocation(latitude, longitude);
+                    },
+                    err => showError('Please allow location access to get weather data')
+                );
+            } else {
+                showError('Geolocation is not supported by your browser');
+            }
+        }
+
+        function toggleChatbot() {
+            chatbot.classList.toggle('open');
+        }
+
+        function showTypingIndicator() {
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'typing-indicator';
+            typingIndicator.innerHTML = '<span></span><span></span><span></span>';
+            chatMessages.appendChild(typingIndicator);
+            typingIndicator.style.display = 'block';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return typingIndicator;
+        }
+
+        function removeTypingIndicator(typingIndicator) {
+            if (typingIndicator && typingIndicator.parentNode) {
+                typingIndicator.parentNode.removeChild(typingIndicator);
+            }
+        }
+
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            // Add user message
+            const userMessage = document.createElement('div');
+            userMessage.className = 'message user-message';
+            userMessage.textContent = message;
+            chatMessages.appendChild(userMessage);
+
+            // Show typing indicator
+            const typingIndicator = showTypingIndicator();
+
+            try {
+                // Call Gemini API
+                const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-goog-api-key': geminiApiKey
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `Based on the current temperature ${currentTemperature}, ${message}`
+                            }]
+                        }]
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch response from Gemini API');
+                }
+
+                const data = await response.json();
+                const aiResponse = data.candidates[0].content.parts[0].text;
+
+                // Remove typing indicator
+                removeTypingIndicator(typingIndicator);
+
+                // Add AI response
+                const aiMessage = document.createElement('div');
+                aiMessage.className = 'message ai-message';
+                aiMessage.textContent = aiResponse;
+                chatMessages.appendChild(aiMessage);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } catch (err) {
+                // Remove typing indicator
+                removeTypingIndicator(typingIndicator);
+
+                // Show error message
+                const aiMessage = document.createElement('div');
+                aiMessage.className = 'message ai-message';
+                aiMessage.textContent = `Sorry, I couldn't process your request: ${err.message}`;
+                chatMessages.appendChild(aiMessage);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            chatInput.value = '';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Handle Enter key for sending message
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Recreate clouds and raindrops on window resize
+        window.addEventListener('resize', () => {
+            if (document.body.classList.contains('rainy')) {
+                createRaindrops();
+            }
+            // Recreate clouds based on current weather condition
+            const weatherCondition = document.body.classList.contains('rainy') ? 'Rain' :
+                                    document.body.classList.contains('sunny') ? 'Clear' :
+                                    document.body.classList.contains('cloudy') ? 'Clouds' :
+                                    document.body.classList.contains('snowy') ? 'Snow' : 'Default';
+            let numClouds = window.innerWidth < 600 ? 5 : 10;
+            if (weatherCondition === 'Clouds') {
+                numClouds = window.innerWidth < 600 ? 10 : 20;
+            } else if (weatherCondition === 'Clear') {
+                numClouds = window.innerWidth < 600 ? 2 : 5;
+            } else if (['Rain', 'Drizzle', 'Thunderstorm'].includes(weatherCondition)) {
+                numClouds = window.innerWidth < 600 ? 8 : 15;
+            }
+            createClouds(numClouds);
+        });
+
+        window.onload = getLocation;
+    </script>
+</body>
+</html>
